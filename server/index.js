@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import db from './database.js';
+import { computeAIRoutes } from './routingEngine.js'; // Added for AI Smart Router
 
 // Load environment variables
 dotenv.config();
@@ -271,6 +272,13 @@ app.get('/api/me', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// POST /api/route/calculate — processes the user location inputs
+app.post('/api/route/calculate', async (req, res) => {
+  const { from, to } = req.body;
+  
+  if (!from || !to) {
+    return res.status(400).json({ error: 'Please supply both departure and destination inputs.' });
+  }
+
+  try {
+    const routeStrategy = await computeAIRoutes(from, to);
