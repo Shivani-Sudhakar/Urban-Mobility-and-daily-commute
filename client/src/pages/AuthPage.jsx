@@ -1,0 +1,268 @@
+import React, { useEffect, useRef } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
+
+export default function AuthPage({
+  screen,
+  name,
+  setName,
+  email,
+  setEmail,
+  password,
+  setPassword,
+  showPassword,
+  setShowPassword,
+  otp,
+  otpRefs,
+  otpCooldown,
+  newPassword,
+  setNewPassword,
+  confirmPassword,
+  setConfirmPassword,
+  showNewPassword,
+  setShowNewPassword,
+  showConfirmPassword,
+  setShowConfirmPassword,
+  isLoading,
+  error,
+  onEntrySubmit,
+  onPasswordLoginSubmit,
+  onOtpChange,
+  onOtpKeyDown,
+  onResendOtp,
+  onPasswordSetSubmit,
+  onResetAuth,
+}) {
+  const nameRef = useRef(null);
+  const otp0Ref = useRef(null);
+
+  useEffect(() => {
+    if (screen === 'entry') {
+      nameRef.current?.focus();
+    }
+    if (screen === 'otp_verify') {
+      otp0Ref.current?.focus();
+    }
+  }, [screen]);
+
+  return (
+    <div className="auth-page">
+      <header className="auth-header">
+        <div className="auth-logo">
+          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        </div>
+        <h1 className="auth-title">namma card</h1>
+        <p className="auth-subtitle">Chennai Urban Commute</p>
+      </header>
+
+      <main className="auth-main">
+        <div className="auth-card">
+          {error && (
+            <div className="auth-error" role="alert">
+              {error}
+            </div>
+          )}
+
+          {screen === 'entry' && (
+            <form onSubmit={onEntrySubmit} className="auth-form">
+              <div className="auth-form-header">
+                <h2>Get Started</h2>
+                <p>Enter your name and email address to continue.</p>
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="name">Your Name</label>
+                <input
+                  ref={nameRef}
+                  id="name"
+                  type="text"
+                  name="name"
+                  required
+                  autoComplete="name"
+                  placeholder="e.g. Adyar Kumar"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="email">Email Address</label>
+                <input
+                  id="email"
+                  type="email"
+                  name="email"
+                  required
+                  autoComplete="email"
+                  placeholder="e.g. you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <button type="submit" className="auth-btn-primary" disabled={isLoading}>
+                {isLoading ? <span className="auth-spinner" /> : 'Continue'}
+              </button>
+            </form>
+          )}
+
+          {screen === 'password_login' && (
+            <form onSubmit={onPasswordLoginSubmit} className="auth-form">
+              <div className="auth-form-header">
+                <span className="auth-kicker">Existing Commuter</span>
+                <h2>Welcome back, {name || 'Commuter'}!</h2>
+                <p>Signing in as <strong>{email}</strong></p>
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="password">Password</label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="auth-btn-primary" disabled={isLoading}>
+                {isLoading ? <span className="auth-spinner" /> : 'Login'}
+              </button>
+
+              <button type="button" className="auth-btn-secondary" onClick={() => onResetAuth(true)}>
+                Use a different account
+              </button>
+            </form>
+          )}
+
+          {screen === 'otp_verify' && (
+            <div className="auth-form">
+              <button type="button" className="auth-back-link" onClick={() => onResetAuth(false)}>
+                &larr; Back to sign up
+              </button>
+
+              <div className="auth-form-header">
+                <span className="auth-kicker">Verification Required</span>
+                <h2>Verify Email</h2>
+                <p>
+                  We&apos;ve sent a 4-digit code to{' '}
+                  <strong>{email.trim().toLowerCase()}</strong>
+                </p>
+              </div>
+
+              <div className="auth-otp-row">
+                {otp.map((digit, index) => (
+                  <input
+                    key={index}
+                    ref={(el) => {
+                      otpRefs[index].current = el;
+                      if (index === 0) otp0Ref.current = el;
+                    }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => onOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => onOtpKeyDown(index, e)}
+                    className="auth-otp-input"
+                    aria-label={`OTP digit ${index + 1}`}
+                  />
+                ))}
+              </div>
+
+              <div className="auth-resend-row">
+                <span>Didn&apos;t receive the OTP?</span>
+                <button
+                  type="button"
+                  onClick={onResendOtp}
+                  disabled={otpCooldown > 0 || isLoading}
+                  className="auth-resend-btn"
+                >
+                  {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend OTP'}
+                </button>
+              </div>
+
+              <button type="button" className="auth-btn-secondary" onClick={() => onResetAuth(false)}>
+                Go Back
+              </button>
+            </div>
+          )}
+
+          {screen === 'password_set' && (
+            <form onSubmit={onPasswordSetSubmit} className="auth-form">
+              <div className="auth-form-header">
+                <span className="auth-kicker">Final Step</span>
+                <h2>Set Password</h2>
+                <p>Create a password for <strong>{email}</strong></p>
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="new-password">Create Password</label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="new-password"
+                    type={showNewPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="new-password"
+                    placeholder="Minimum 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye-btn"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="confirm-password">Confirm Password</label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="confirm-password"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="new-password"
+                    placeholder="Re-enter password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye-btn"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="auth-btn-primary" disabled={isLoading}>
+                {isLoading ? <span className="auth-spinner" /> : 'Create Account'}
+              </button>
+            </form>
+          )}
+        </div>
+      </main>
+
+      <footer className="auth-footer">
+        &copy; {new Date().getFullYear()} CHENNAI SMART CITY LTD. &bull; SECURE AUTH
+      </footer>
+    </div>
+  );
+}
