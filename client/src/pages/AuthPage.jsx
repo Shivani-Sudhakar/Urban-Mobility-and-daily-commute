@@ -24,25 +24,35 @@ export default function AuthPage({
   setShowConfirmPassword,
   isLoading,
   error,
-  onEntrySubmit,
-  onPasswordLoginSubmit,
+  onLoginSubmit,
+  onSignupSubmit,
   onOtpChange,
   onOtpKeyDown,
   onResendOtp,
   onPasswordSetSubmit,
+  onGoToWelcome,
+  onGoToLogin,
+  onGoToSignup,
   onResetAuth,
 }) {
   const nameRef = useRef(null);
+  const emailRef = useRef(null);
   const otp0Ref = useRef(null);
 
   useEffect(() => {
-    if (screen === 'entry') {
+    if (screen === 'signup') {
       nameRef.current?.focus();
+    }
+    if (screen === 'login') {
+      emailRef.current?.focus();
     }
     if (screen === 'otp_verify') {
       otp0Ref.current?.focus();
     }
   }, [screen]);
+
+  const emailAlreadyExists =
+    error === 'This email is already registered. Please login.';
 
   return (
     <div className="auth-page">
@@ -61,14 +71,111 @@ export default function AuthPage({
           {error && (
             <div className="auth-error" role="alert">
               {error}
+              {emailAlreadyExists && (
+                <button
+                  type="button"
+                  className="auth-error-link"
+                  onClick={onGoToLogin}
+                >
+                  Go to Login
+                </button>
+              )}
             </div>
           )}
 
-          {screen === 'entry' && (
-            <form onSubmit={onEntrySubmit} className="auth-form">
+          {screen === 'welcome' && (
+            <div className="auth-form">
+              <div className="auth-form-header auth-welcome-header">
+                <h2>Welcome to Namma Card</h2>
+                <p>Your smart companion for Chennai urban commute.</p>
+              </div>
+
+              <button
+                type="button"
+                className="auth-btn-primary"
+                onClick={onGoToLogin}
+              >
+                Login
+              </button>
+
+              <button
+                type="button"
+                className="auth-btn-secondary"
+                onClick={onGoToSignup}
+              >
+                Sign Up
+              </button>
+            </div>
+          )}
+
+          {screen === 'login' && (
+            <form onSubmit={onLoginSubmit} className="auth-form">
+              <button type="button" className="auth-back-link" onClick={onGoToWelcome}>
+                &larr; Back
+              </button>
+
               <div className="auth-form-header">
-                <h2>Get Started</h2>
-                <p>Enter your name and email address to continue.</p>
+                <h2>Login</h2>
+                <p>Enter your email and password to continue.</p>
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="login-email">Email Address</label>
+                <input
+                  ref={emailRef}
+                  id="login-email"
+                  type="email"
+                  name="email"
+                  required
+                  autoComplete="email"
+                  placeholder="e.g. you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="auth-field">
+                <label htmlFor="password">Password</label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    autoComplete="current-password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-eye-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button type="submit" className="auth-btn-primary" disabled={isLoading}>
+                {isLoading ? <span className="auth-spinner" /> : 'Login'}
+              </button>
+
+              <button type="button" className="auth-btn-secondary" onClick={onGoToSignup}>
+                Don&apos;t have an account? Sign Up
+              </button>
+            </form>
+          )}
+
+          {screen === 'signup' && (
+            <form onSubmit={onSignupSubmit} className="auth-form">
+              <button type="button" className="auth-back-link" onClick={onGoToWelcome}>
+                &larr; Back
+              </button>
+
+              <div className="auth-form-header">
+                <h2>Sign Up</h2>
+                <p>Enter your name and email address to create an account.</p>
               </div>
 
               <div className="auth-field">
@@ -103,53 +210,16 @@ export default function AuthPage({
               <button type="submit" className="auth-btn-primary" disabled={isLoading}>
                 {isLoading ? <span className="auth-spinner" /> : 'Continue'}
               </button>
-            </form>
-          )}
 
-          {screen === 'password_login' && (
-            <form onSubmit={onPasswordLoginSubmit} className="auth-form">
-              <div className="auth-form-header">
-                <span className="auth-kicker">Existing Commuter</span>
-                <h2>Welcome back, {name || 'Commuter'}!</h2>
-                <p>Signing in as <strong>{email}</strong></p>
-              </div>
-
-              <div className="auth-field">
-                <label htmlFor="password">Password</label>
-                <div className="auth-password-wrap">
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    autoComplete="current-password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="auth-eye-btn"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              <button type="submit" className="auth-btn-primary" disabled={isLoading}>
-                {isLoading ? <span className="auth-spinner" /> : 'Login'}
-              </button>
-
-              <button type="button" className="auth-btn-secondary" onClick={() => onResetAuth(true)}>
-                Use a different account
+              <button type="button" className="auth-btn-secondary" onClick={onGoToLogin}>
+                Already have an account? Login
               </button>
             </form>
           )}
 
           {screen === 'otp_verify' && (
             <div className="auth-form">
-              <button type="button" className="auth-back-link" onClick={() => onResetAuth(false)}>
+              <button type="button" className="auth-back-link" onClick={() => onResetAuth('signup')}>
                 &larr; Back to sign up
               </button>
 
@@ -194,7 +264,7 @@ export default function AuthPage({
                 </button>
               </div>
 
-              <button type="button" className="auth-btn-secondary" onClick={() => onResetAuth(false)}>
+              <button type="button" className="auth-btn-secondary" onClick={() => onResetAuth('signup')}>
                 Go Back
               </button>
             </div>

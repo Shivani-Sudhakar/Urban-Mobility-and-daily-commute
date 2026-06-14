@@ -11,9 +11,9 @@ import AuthPage from './pages/AuthPage';
 const API_BASE = 'http://localhost:5000/api';
 
 export default function App() {
-  // Screen state: 'loading' | 'entry' | 'password_login' | 'otp_verify' | 'password_set' | 'app'
+  // Screen state: 'loading' | 'welcome' | 'login' | 'signup' | 'otp_verify' | 'password_set' | 'app'
   const [screen, setScreen] = useState(() =>
-    localStorage.getItem('token') ? 'loading' : 'entry'
+    localStorage.getItem('token') ? 'loading' : 'welcome'
   );
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
@@ -41,10 +41,10 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Always start fresh on the sign-up screen when not logged in
+  // Always start fresh on the welcome screen when not logged in
   useLayoutEffect(() => {
     if (!localStorage.getItem('token')) {
-      setScreen('entry');
+      setScreen('welcome');
       setName('');
       setEmail('');
       setPassword('');
@@ -76,13 +76,13 @@ export default function App() {
       })
       .catch(() => {
         localStorage.removeItem('token');
-        setScreen('entry');
+        setScreen('welcome');
       })
       .finally(() => {
         setIsLoading(false);
       });
     } else {
-      setScreen('entry');
+      setScreen('welcome');
     }
   }, []);
 
@@ -108,8 +108,30 @@ export default function App() {
     }, 1000);
   };
 
-  // Screen 1 Submit: Entry Form
-  const handleEntrySubmit = async (e) => {
+  const goToWelcome = () => {
+    setError('');
+    setPassword('');
+    setOtp(['', '', '', '']);
+    setNewPassword('');
+    setConfirmPassword('');
+    setScreen('welcome');
+  };
+
+  const goToLogin = () => {
+    setError('');
+    setPassword('');
+    setScreen('login');
+  };
+
+  const goToSignup = () => {
+    setError('');
+    setName('');
+    setEmail('');
+    setScreen('signup');
+  };
+
+  // Sign up: name + email, then OTP flow
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -126,7 +148,6 @@ export default function App() {
     setIsLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      // Check email registration status
       const res = await fetch(`${API_BASE}/check-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,24 +156,23 @@ export default function App() {
       const data = await res.json();
 
       if (data.exists) {
-        // Existing user -> Password Login
-        setScreen('password_login');
-      } else {
-        // New user -> Send OTP
-        const otpRes = await fetch(`${API_BASE}/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: normalizedEmail })
-        });
-        const otpData = await otpRes.json();
+        setError('This email is already registered. Please login.');
+        return;
+      }
 
-        if (otpData.success) {
-          setScreen('otp_verify');
-          setOtp(['', '', '', '']);
-          startCooldown();
-        } else {
-          setError(otpData.error || 'Failed to send OTP. Please try again.');
-        }
+      const otpRes = await fetch(`${API_BASE}/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+      const otpData = await otpRes.json();
+
+      if (otpData.success) {
+        setScreen('otp_verify');
+        setOtp(['', '', '', '']);
+        startCooldown();
+      } else {
+        setError(otpData.error || 'Failed to send OTP. Please try again.');
       }
     } catch (err) {
       setError('Connection error. Please try again.');
@@ -161,10 +181,15 @@ export default function App() {
     }
   };
 
-  // Screen 2A Submit: Password Login
-  const handlePasswordLoginSubmit = async (e) => {
+  // Login: email + password
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address');
+      return;
+    }
 
     if (!password) {
       setError('Please enter your password');
@@ -340,7 +365,7 @@ export default function App() {
     }
   };
 
-  const resetAuthFlow = (clearIdentity = false) => {
+  const resetAuthFlow = (targetScreen = 'welcome', clearIdentity = false) => {
     setError('');
     setPassword('');
     setOtp(['', '', '', '']);
@@ -350,7 +375,7 @@ export default function App() {
       setName('');
       setEmail('');
     }
-    setScreen('entry');
+    setScreen(targetScreen);
   };
 
   // Logout function
@@ -363,7 +388,7 @@ export default function App() {
     setPassword('');
     setNewPassword('');
     setConfirmPassword('');
-    setScreen('entry');
+    setScreen('welcome');
   };
 
   // Render Page Content based on Active Tab
@@ -486,12 +511,15 @@ export default function App() {
           setShowConfirmPassword={setShowConfirmPassword}
           isLoading={isLoading}
           error={error}
-          onEntrySubmit={handleEntrySubmit}
-          onPasswordLoginSubmit={handlePasswordLoginSubmit}
+          onLoginSubmit={handleLoginSubmit}
+          onSignupSubmit={handleSignupSubmit}
           onOtpChange={handleOtpChange}
           onOtpKeyDown={handleOtpKeyDown}
           onResendOtp={handleResendOtp}
           onPasswordSetSubmit={handlePasswordSetSubmit}
+          onGoToWelcome={goToWelcome}
+          onGoToLogin={goToLogin}
+          onGoToSignup={goToSignup}
           onResetAuth={resetAuthFlow}
         />
       )}

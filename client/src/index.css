@@ -286,6 +286,28 @@ body {
   font-weight: 500;
 }
 
+.auth-error-link {
+  display: block;
+  margin-top: 8px;
+  border: none;
+  background: none;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.auth-welcome-header {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.auth-welcome-header h2 {
+  font-size: 22px;
+}
+
 .auth-back-link {
   align-self: flex-start;
   border: none;
