@@ -1,527 +1,162 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
-import { House, Route, CreditCard, BarChart3, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { Navigation, Clock, Banknote, MapPin, Zap, AlertCircle, RefreshCw } from 'lucide-react';
 
-import HomePage from './pages/HomePage';
-import AIRoutePage from './pages/AIRoutePage';
-import CardPage from './pages/CardPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import ProfilePage from './pages/ProfilePage';
-import AuthPage from './pages/AuthPage';
+export default function AIRoutePage() {
+  // Input tracking states
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  
+  // Data and UI feedback states
+  const [routes, setRoutes] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
 
-const API_BASE = 'http://localhost:5000/api';
-
-export default function App() {
-  // Screen state: 'loading' | 'welcome' | 'login' | 'signup' | 'otp_verify' | 'password_set' | 'app'
-  const [screen, setScreen] = useState(() =>
-    localStorage.getItem('token') ? 'loading' : 'welcome'
-  );
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-  const [activeTab, setActiveTab] = useState('home');
-
-  // Input states
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  // OTP Verification state (4 digits)
-  const [otp, setOtp] = useState(['', '', '', '']);
-  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null)];
-  const [otpCooldown, setOtpCooldown] = useState(0);
-  const cooldownTimerRef = useRef(null);
-
-  // Password Set state
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // UI States
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  // Always start fresh on the welcome screen when not logged in
-  useLayoutEffect(() => {
-    if (!localStorage.getItem('token')) {
-      setScreen('welcome');
-      setName('');
-      setEmail('');
-      setPassword('');
-      setOtp(['', '', '', '']);
-      setNewPassword('');
-      setConfirmPassword('');
-      setError('');
-    }
-  }, []);
-
-  // 1. Silent Session Restore
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    if (savedToken) {
-      setIsLoading(true);
-      fetch(`${API_BASE}/me`, {
-        headers: {
-          'Authorization': `Bearer ${savedToken}`
-        }
-      })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error('Unauthorized');
-      })
-      .then(data => {
-        setUser(data);
-        setToken(savedToken);
-        setScreen('app');
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        setScreen('welcome');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-    } else {
-      setScreen('welcome');
-    }
-  }, []);
-
-  // Cleanup timers
-  useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-    };
-  }, []);
-
-  // Cooldown timer logic for OTP resend
-  const startCooldown = () => {
-    setOtpCooldown(30);
-    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-    cooldownTimerRef.current = setInterval(() => {
-      setOtpCooldown(prev => {
-        if (prev <= 1) {
-          clearInterval(cooldownTimerRef.current);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  };
-
-  const goToWelcome = () => {
-    setError('');
-    setPassword('');
-    setOtp(['', '', '', '']);
-    setNewPassword('');
-    setConfirmPassword('');
-    setScreen('welcome');
-  };
-
-  const goToLogin = () => {
-    setError('');
-    setPassword('');
-    setScreen('login');
-  };
-
-  const goToSignup = () => {
-    setError('');
-    setName('');
-    setEmail('');
-    setScreen('signup');
-  };
-
-  // Sign up: name + email, then OTP flow
-  const handleSignupSubmit = async (e) => {
+  const handleSearchRoutes = async (e) => {
     e.preventDefault();
-    setError('');
-
-    if (!name.trim()) {
-      setError('Please enter your name');
+    
+    // Validation: Check if inputs are blank
+    if (!from.trim() || !to.trim()) {
+      setErr('Please fill out both the departure and destination hubs.');
       return;
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const normalizedEmail = email.trim().toLowerCase();
-      const res = await fetch(`${API_BASE}/check-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail })
-      });
-      const data = await res.json();
-
-      if (data.exists) {
-        setError('This email is already registered. Please login.');
-        return;
-      }
-
-      const otpRes = await fetch(`${API_BASE}/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail })
-      });
-      const otpData = await otpRes.json();
-
-      if (otpData.success) {
-        setScreen('otp_verify');
-        setOtp(['', '', '', '']);
-        startCooldown();
-      } else {
-        setError(otpData.error || 'Failed to send OTP. Please try again.');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Login: email + password
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setError('Please enter a valid email address');
-      return;
-    }
-
-    if (!password) {
-      setError('Please enter your password');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password })
-      });
-      const data = await res.json();
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
-        // Get user details
-        const meRes = await fetch(`${API_BASE}/me`, {
-          headers: { 'Authorization': `Bearer ${data.token}` }
-        });
-        const meData = await meRes.json();
-        setUser(meData);
-        setScreen('app');
-        setActiveTab('home');
-      } else {
-        setError(data.error || 'Incorrect password. Try again.');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Screen 2B OTP input handlers
-  const handleOtpChange = (index, value) => {
-    // Only accept numeric inputs
-    if (value && !/^\d$/.test(value)) return;
-
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-
-    // Auto-advance focus to next input
-    if (value && index < 3) {
-      otpRefs[index + 1].current.focus();
-    }
-
-    // Auto-submit OTP once all 4 digits are entered
-    if (newOtp.every(digit => digit !== '')) {
-      handleVerifyOtp(newOtp.join(''));
-    }
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace') {
-      // If current field is empty, clear the previous and move focus back
-      if (!otp[index] && index > 0) {
-        const newOtp = [...otp];
-        newOtp[index - 1] = '';
-        setOtp(newOtp);
-        otpRefs[index - 1].current.focus();
-      } else {
-        const newOtp = [...otp];
-        newOtp[index] = '';
-        setOtp(newOtp);
-      }
-    }
-  };
-
-  // Verify OTP submission
-  const handleVerifyOtp = async (otpCodeString) => {
-    setError('');
-    setIsLoading(true);
+    setLoading(true);
+    setErr('');
+    setRoutes(null);
 
     try {
-      const res = await fetch(`${API_BASE}/verify-otp`, {
+      // Connects directly to the backend endpoint you configured in your server file
+      const res = await fetch('http://localhost:5000/api/route/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), otp: otpCodeString })
+        body: JSON.stringify({ 
+          from: from.trim(), 
+          to: to.trim() 
+        })
       });
-      const data = await res.json();
-
-      if (data.success) {
-        setScreen('password_set');
-      } else {
-        setError(data.error || 'Incorrect OTP');
-        // Clear inputs on failure
-        setOtp(['', '', '', '']);
-        otpRefs[0].current.focus();
+      
+      if (!res.ok) {
+        throw new Error('Server returned an evaluation fault.');
       }
-    } catch (err) {
-      setError('Verification error. Please try again.');
-      setOtp(['', '', '', '']);
-      otpRefs[0].current.focus();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Resend OTP logic
-  const handleResendOtp = async () => {
-    if (otpCooldown > 0 || isLoading) return;
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const res = await fetch(`${API_BASE}/resend-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim().toLowerCase() })
-      });
+      
       const data = await res.json();
-
-      if (data.success) {
-        startCooldown();
-        setOtp(['', '', '', '']);
-        otpRefs[0].current.focus();
-      } else {
-        setError(data.error || 'Failed to resend OTP.');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
+      setRoutes(data);
+    } catch (error) {
+      setErr('Could not establish connection to the backend route engine.');
+      console.error('Routing fetch error:', error);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Screen 3: Create password & register
-  const handlePasswordSetSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-
-    if (!newPassword || !confirmPassword) {
-      setError('All fields are required');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email: email.trim().toLowerCase(), password: newPassword })
-      });
-      const data = await res.json();
-
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        setToken(data.token);
-        setUser({ name, email: email.trim().toLowerCase() });
-        setScreen('app');
-        setActiveTab('home');
-      } else {
-        setError(data.error || 'Failed to register account');
-      }
-    } catch (err) {
-      setError('Connection error. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const resetAuthFlow = (targetScreen = 'welcome', clearIdentity = false) => {
-    setError('');
-    setPassword('');
-    setOtp(['', '', '', '']);
-    setNewPassword('');
-    setConfirmPassword('');
-    if (clearIdentity) {
-      setName('');
-      setEmail('');
-    }
-    setScreen(targetScreen);
-  };
-
-  // Logout function
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
-    setToken(null);
-    setName('');
-    setEmail('');
-    setPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setScreen('welcome');
-  };
-
-  // Render Page Content based on Active Tab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return <HomePage />;
-      case 'route':
-        return <AIRoutePage />;
-      case 'card':
-        return <CardPage />;
-      case 'analytics':
-        return <AnalyticsPage />;
-      case 'profile':
-        return <ProfilePage user={user} onLogout={handleLogout} />;
-      default:
-        return <HomePage />;
-    }
-  };
-
-  // Loading indicator for silent logins / actions
-  if (screen === 'loading') {
-    return (
-      <div className="phone-container justify-center items-center">
-        <div className="w-10 h-10 border-4 border-[#0f766e] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-[#64748b] text-[14px] font-medium font-inter">Loading...</p>
-      </div>
-    );
-  }
-
-  // Render Full App Screen or Auth Flow Screens
   return (
-    <div className={`phone-container${screen !== 'app' ? ' phone-container--auth' : ''}`}>
-      {screen === 'app' ? (
-        // MAIN 5-TAB APP SHELL
-        <div className="h-full flex flex-col justify-between">
-          <div className="flex-1 overflow-y-auto pb-16">
-            {renderTabContent()}
+    <div className="p-4 font-inter max-w-md mx-auto pb-24">
+      {/* Header Banner */}
+      <div className="flex items-center gap-2 mb-6">
+        <Navigation className="text-[#0f766e]" size={24} strokeWidth={2.5} />
+        <h1 className="text-xl font-bold text-slate-800 tracking-tight">Namma AI Smart Router</h1>
+      </div>
+
+      {/* Input Form Card */}
+      <form onSubmit={handleSearchRoutes} className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-6 space-y-4 shadow-sm">
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Starting Hub</label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-3.5 text-slate-400" size={16} />
+            <input 
+              type="text"
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              placeholder="e.g., Central, Guindy, Adyar, SSN"
+              className="w-full bg-white border border-slate-200 rounded-lg py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none focus:border-[#0f766e] transition-colors shadow-sm"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">Destination Hub</label>
+          <div className="relative">
+            <MapPin className="absolute left-3 top-3.5 text-rose-500" size={16} />
+            <input 
+              type="text"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="e.g., Guindy, T_Nagar, Sholinganallur, SSN"
+              className="w-full bg-white border border-slate-200 rounded-lg py-2.5 pl-9 pr-4 text-sm text-slate-700 outline-none focus:border-[#0f766e] transition-colors shadow-sm"
+            />
+          </div>
+        </div>
+
+        {/* Dynamic Error Messaging banner */}
+        {err && (
+          <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 p-3 rounded-lg text-rose-600 text-xs font-medium">
+            <AlertCircle size={16} className="shrink-0" />
+            <p>{err}</p>
+          </div>
+        )}
+
+        {/* Interactive Submit Button */}
+        <button 
+          type="submit" 
+          disabled={loading} 
+          className="w-full bg-[#0f766e] text-white py-3 rounded-lg text-sm font-semibold hover:bg-[#0d635c] transition-all flex justify-center items-center gap-2 cursor-pointer disabled:opacity-60 shadow-md active:scale-[0.99]"
+        >
+          {loading ? (
+            <>
+              <RefreshCw size={16} className="animate-spin" />
+              Compiling Transit Matrices...
+            </>
+          ) : (
+            'Generate Route Strategy'
+          )}
+        </button>
+      </form>
+
+      {/* Results Dynamic Matrices Renders */}
+      {routes && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex justify-between items-center px-1">
+            <p className="text-xs text-slate-400 font-medium">
+              Evaluated Distance: <span className="text-slate-700 font-bold">{routes.fastest.distance} km</span>
+            </p>
+          </div>
+          
+          {/* OPTION CARD 1: FASTEST METHOD STRATEGY */}
+          <div className="bg-white border-2 border-amber-500/30 rounded-xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+            <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] uppercase tracking-widest px-3 py-1 font-bold rounded-bl-lg flex items-center gap-1">
+              <Zap size={10} fill="currentColor" /> Fastest Method
+            </div>
+            <h3 className="font-bold text-slate-800 text-base mb-1 pr-24">{routes.fastest.mode}</h3>
+            <p className="text-xs text-slate-500 mb-4 pr-4 leading-relaxed">{routes.fastest.description}</p>
+            
+            <div className="flex justify-between items-center bg-slate-50 px-4 py-3 rounded-lg border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm">
+                <Clock size={16} className="text-[#0f766e]" /> {routes.fastest.time} mins
+              </div>
+              <div className="flex items-center gap-2 text-slate-800 font-extrabold text-base">
+                <Banknote size={18} className="text-emerald-600" /> ₹{routes.fastest.cost}
+              </div>
+            </div>
           </div>
 
-          {/* Persistent Bottom Navigation Bar */}
-          <nav className="absolute bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E5E7EB] flex justify-around items-center px-2 z-20">
-            {/* Home Tab */}
-            <button
-              onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center justify-center w-14 h-full gap-1 transition-colors cursor-pointer ${
-                activeTab === 'home' ? 'text-[#0f766e]' : 'text-[#64748b]'
-              }`}
-            >
-              <House size={20} strokeWidth={activeTab === 'home' ? 2.5 : 2} />
-              <span className="text-[10px] font-medium tracking-tight">Home</span>
-            </button>
-
-            {/* AI Route Tab */}
-            <button
-              onClick={() => setActiveTab('route')}
-              className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors cursor-pointer ${
-                activeTab === 'route' ? 'text-[#0f766e]' : 'text-[#64748b]'
-              }`}
-            >
-              <Route size={20} strokeWidth={activeTab === 'route' ? 2.5 : 2} />
-              <span className="text-[10px] font-medium tracking-tight">AI Route</span>
-            </button>
-
-            {/* Card Tab */}
-            <button
-              onClick={() => setActiveTab('card')}
-              className={`flex flex-col items-center justify-center w-14 h-full gap-1 transition-colors cursor-pointer ${
-                activeTab === 'card' ? 'text-[#0f766e]' : 'text-[#64748b]'
-              }`}
-            >
-              <CreditCard size={20} strokeWidth={activeTab === 'card' ? 2.5 : 2} />
-              <span className="text-[10px] font-medium tracking-tight">Card</span>
-            </button>
-
-            {/* Analytics Tab */}
-            <button
-              onClick={() => setActiveTab('analytics')}
-              className={`flex flex-col items-center justify-center w-16 h-full gap-1 transition-colors cursor-pointer ${
-                activeTab === 'analytics' ? 'text-[#0f766e]' : 'text-[#64748b]'
-              }`}
-            >
-              <BarChart3 size={20} strokeWidth={activeTab === 'analytics' ? 2.5 : 2} />
-              <span className="text-[10px] font-medium tracking-tight">Analytics</span>
-            </button>
-
-            {/* Profile Tab */}
-            <button
-              onClick={() => setActiveTab('profile')}
-              className={`flex flex-col items-center justify-center w-14 h-full gap-1 transition-colors cursor-pointer ${
-                activeTab === 'profile' ? 'text-[#0f766e]' : 'text-[#64748b]'
-              }`}
-            >
-              <User size={20} strokeWidth={activeTab === 'profile' ? 2.5 : 2} />
-              <span className="text-[10px] font-medium tracking-tight">Profile</span>
-            </button>
-          </nav>
+          {/* OPTION CARD 2: CHEAPEST METHOD STRATEGY */}
+          <div className="bg-white border-2 border-emerald-500/30 rounded-xl p-4 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+            <div className="absolute top-0 right-0 bg-emerald-600 text-white text-[10px] uppercase tracking-widest px-3 py-1 font-bold rounded-bl-lg">
+              Cheapest Method
+            </div>
+            <h3 className="font-bold text-slate-800 text-base mb-1 pr-24">{routes.cheapest.mode}</h3>
+            <p className="text-xs text-slate-500 mb-4 pr-4 leading-relaxed">{routes.cheapest.description}</p>
+            
+            <div className="flex justify-between items-center bg-slate-50 px-4 py-3 rounded-lg border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-700 font-semibold text-sm">
+                <Clock size={16} className="text-[#0f766e]" /> {routes.cheapest.time} mins
+              </div>
+              <div className="flex items-center gap-2 text-slate-800 font-extrabold text-base">
+                <Banknote size={18} className="text-emerald-600" /> ₹{routes.cheapest.cost}
+              </div>
+            </div>
+          </div>
         </div>
-      ) : (
-        <AuthPage
-          screen={screen}
-          name={name}
-          setName={setName}
-          email={email}
-          setEmail={setEmail}
-          password={password}
-          setPassword={setPassword}
-          showPassword={showPassword}
-          setShowPassword={setShowPassword}
-          otp={otp}
-          otpRefs={otpRefs}
-          otpCooldown={otpCooldown}
-          newPassword={newPassword}
-          setNewPassword={setNewPassword}
-          confirmPassword={confirmPassword}
-          setConfirmPassword={setConfirmPassword}
-          showNewPassword={showNewPassword}
-          setShowNewPassword={setShowNewPassword}
-          showConfirmPassword={showConfirmPassword}
-          setShowConfirmPassword={setShowConfirmPassword}
-          isLoading={isLoading}
-          error={error}
-          onLoginSubmit={handleLoginSubmit}
-          onSignupSubmit={handleSignupSubmit}
-          onOtpChange={handleOtpChange}
-          onOtpKeyDown={handleOtpKeyDown}
-          onResendOtp={handleResendOtp}
-          onPasswordSetSubmit={handlePasswordSetSubmit}
-          onGoToWelcome={goToWelcome}
-          onGoToLogin={goToLogin}
-          onGoToSignup={goToSignup}
-          onResetAuth={resetAuthFlow}
-        />
       )}
     </div>
   );
