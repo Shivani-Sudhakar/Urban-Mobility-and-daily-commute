@@ -8,7 +8,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'http://127.0.0.1:5000/api';
 
 export default function App() {
   // Screen state: 'loading' | 'welcome' | 'login' | 'signup' | 'otp_verify' | 'password_set' | 'app'
@@ -18,6 +18,11 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
+  // Use userCredits from localStorage or state
+  const [userCredits, setUserCredits] = useState(() => {
+    const saved = localStorage.getItem('userCredits');
+    return saved !== null ? parseFloat(saved) : null;
+  });
 
   // Input states
   const [name, setName] = useState('');
@@ -72,6 +77,9 @@ export default function App() {
       .then(data => {
         setUser(data);
         setToken(savedToken);
+        setUserCredits(data.credits);
+        // Sync server credits with localStorage
+        localStorage.setItem('userCredits', String(data.credits));
         setScreen('app');
       })
       .catch(() => {
@@ -214,6 +222,9 @@ export default function App() {
         });
         const meData = await meRes.json();
         setUser(meData);
+        setUserCredits(meData.credits);
+        // Sync server credits with localStorage
+        localStorage.setItem('userCredits', String(meData.credits));
         setScreen('app');
         setActiveTab('home');
       } else {
@@ -352,7 +363,15 @@ export default function App() {
       if (data.token) {
         localStorage.setItem('token', data.token);
         setToken(data.token);
-        setUser({ name, email: email.trim().toLowerCase() });
+        // Get user details to fetch credits
+        const meRes = await fetch(`${API_BASE}/me`, {
+          headers: { 'Authorization': `Bearer ${data.token}` }
+        });
+        const meData = await meRes.json();
+        setUser(meData);
+        setUserCredits(meData.credits);
+        // Sync server credits with localStorage
+        localStorage.setItem('userCredits', String(meData.credits));
         setScreen('app');
         setActiveTab('home');
       } else {
@@ -391,22 +410,45 @@ export default function App() {
     setScreen('welcome');
   };
 
+  // Global function to sync credits display
+  const updateCreditsDisplay = () => {
+    const saved = localStorage.getItem('userCredits');
+    if (saved !== null) {
+      setUserCredits(parseFloat(saved));
+    }
+  };
+
+  // Add event listener to sync across possible separate components or local storage changes
+  useEffect(() => {
+    window.addEventListener('storage', updateCreditsDisplay);
+    window.addEventListener('creditsUpdated', updateCreditsDisplay);
+    return () => {
+      window.removeEventListener('storage', updateCreditsDisplay);
+      window.removeEventListener('creditsUpdated', updateCreditsDisplay);
+    };
+  }, []);
+
   // Render Page Content based on Active Tab
   const renderTabContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return <HomePage />;
-      case 'route':
-        return <AIRoutePage />;
-      case 'card':
-        return <CardPage />;
-      case 'analytics':
-        return <AnalyticsPage />;
-      case 'profile':
-        return <ProfilePage user={user} onLogout={handleLogout} />;
-      default:
-        return <HomePage />;
-    }
+    return (
+      <div className="screens-container" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '64px' }}>
+        <div className="screen-wrapper" style={{ display: activeTab === 'home' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
+          <HomePage user={user} userCredits={userCredits} onCreditsUpdate={(val) => { setUserCredits(val); localStorage.setItem('userCredits', String(val)); window.dispatchEvent(new Event('creditsUpdated')); }} />
+        </div>
+        <div className="screen-wrapper" style={{ display: activeTab === 'route' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
+          <AIRoutePage />
+        </div>
+        <div className="screen-wrapper" style={{ display: activeTab === 'card' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
+          <CardPage user={user} userCredits={userCredits} />
+        </div>
+        <div className="screen-wrapper" style={{ display: activeTab === 'analytics' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
+          <AnalyticsPage />
+        </div>
+        <div className="screen-wrapper" style={{ display: activeTab === 'profile' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
+          <ProfilePage user={user} onLogout={handleLogout} />
+        </div>
+      </div>
+    );
   };
 
   // Loading indicator for silent logins / actions
@@ -424,8 +466,8 @@ export default function App() {
     <div className={`phone-container${screen !== 'app' ? ' phone-container--auth' : ''}`}>
       {screen === 'app' ? (
         // MAIN 5-TAB APP SHELL
-        <div className="h-full flex flex-col justify-between">
-          <div className="flex-1 overflow-y-auto pb-16">
+        <div className="h-full flex flex-col justify-between" style={{ position: 'relative', width: '100%', height: '100%' }}>
+          <div className="flex-1 pb-16" style={{ position: 'relative', width: '100%', height: '100%' }}>
             {renderTabContent()}
           </div>
 

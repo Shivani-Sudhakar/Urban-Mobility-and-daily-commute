@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "Namma Card",
+    "slug": "nammacard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f0fdfa"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Namma Card needs camera access to scan QR codes at transit stops.",
+        "NSLocationWhenInUseUsageDescription": "Namma Card needs your location to record trip start points and calculate distance."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Namma Card needs your location to record trip start points and calculate distance."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Namma Card needs camera access to scan QR codes at transit stops."
+        }
+      ]
+    ]
+  }
+}

@@ -20,6 +20,7 @@ db.exec(`
     email TEXT UNIQUE NOT NULL,
     phone TEXT,
     password_hash TEXT NOT NULL,
+    credits INTEGER DEFAULT 50,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -45,26 +46,42 @@ try {
         email TEXT UNIQUE NOT NULL,
         phone TEXT,
         password_hash TEXT NOT NULL,
+        credits INTEGER DEFAULT 50,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
     const users = db.prepare('SELECT * FROM users').all();
     const insert = db.prepare(
-      'INSERT INTO users_new (id, name, email, phone, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT INTO users_new (id, name, email, phone, password_hash, credits, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
 
     for (const user of users) {
       const email = user.email && user.email !== ''
         ? user.email
         : `${user.phone}@legacy.nammacard.local`;
-      insert.run(user.id, user.name, email, user.phone || null, user.password_hash, user.created_at);
+      insert.run(user.id, user.name, email, user.phone || null, user.password_hash, 50, user.created_at);
     }
 
     db.exec('DROP TABLE users; ALTER TABLE users_new RENAME TO users;');
   }
 } catch (err) {
   console.error('Migration error updating users table:', err.message);
+}
+
+// Migration: add credits column if it doesn't exist
+try {
+  const tableSql = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'").get()?.sql || '';
+  const needsCreditsColumn = !tableSql.includes('credits');
+
+  if (needsCreditsColumn) {
+    console.log('Migrating database: adding credits column...');
+    db.prepare('ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT 50').run();
+    // Update existing users to have 50 credits
+    db.prepare('UPDATE users SET credits = 50 WHERE credits IS NULL').run();
+  }
+} catch (err) {
+  console.error('Migration error adding credits column:', err.message);
 }
 
 export default db;

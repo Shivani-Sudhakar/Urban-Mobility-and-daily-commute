@@ -10,9 +10,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "html5-qrcode": "^2.3.8",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.18.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "lucide-react": "^1.18.0"
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

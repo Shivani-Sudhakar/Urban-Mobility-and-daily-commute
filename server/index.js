@@ -191,8 +191,8 @@ app.post('/api/register', async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
-    const stmt = db.prepare('INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)');
-    const result = stmt.run(name, normalizedEmail, passwordHash);
+    const stmt = db.prepare('INSERT INTO users (name, email, password_hash, credits) VALUES (?, ?, ?, ?)');
+    const result = stmt.run(name, normalizedEmail, passwordHash, 50);
     const userId = result.lastInsertRowid;
 
     // Generate signed JWT expiring in 30 days
@@ -261,9 +261,19 @@ app.get('/api/me', (req, res) => {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Fetch user from database to get current credits
+    const stmt = db.prepare('SELECT name, email, credits FROM users WHERE id = ?');
+    const user = stmt.get(decoded.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     return res.json({
-      name: decoded.name,
-      email: decoded.email
+      name: user.name,
+      email: user.email,
+      credits: user.credits
     });
   } catch (error) {
     console.error('JWT verification failed:', error.message);
@@ -271,6 +281,96 @@ app.get('/api/me', (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+// POST /api/deduct-credits — deduct credits from user account
+app.post('/api/deduct-credits', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authorization header missing or invalid' });
+  }
+
+  const { amount, tripDetails } = req.body;
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: 'Valid amount is required' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Get current user credits
+    const stmt = db.prepare('SELECT credits FROM users WHERE id = ?');
+    const user = stmt.get(decoded.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has enough credits
+    if (user.credits < amount) {
+      return res.status(400).json({ error: 'Insufficient credits' });
+    }
+
+    // Deduct credits
+    const newBalance = user.credits - amount;
+    const updateStmt = db.prepare('UPDATE users SET credits = ? WHERE id = ?');
+    updateStmt.run(newBalance, decoded.userId);
+
+    return res.json({
+      success: true,
+      remainingBalance: newBalance,
+      deductedAmount: amount
+    });
+  } catch (error) {
+    console.error('Error deducting credits:', error.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/recharge-credits — add credits to user account
+app.post('/api/recharge-credits', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authorization header missing or invalid' });
+  }
+
+  const { credits } = req.body;
+  if (!credits || credits <= 0 || !Number.isFinite(credits)) {
+    return res.status(400).json({ error: 'Valid credits amount is required' });
+  }
+
+  if (credits > 10000) {
+    return res.status(400).json({ error: 'Maximum recharge is 10000 credits' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    // Get current user credits
+    const stmt = db.prepare('SELECT credits FROM users WHERE id = ?');
+    const user = stmt.get(decoded.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Add credits
+    const newBalance = user.credits + credits;
+    const updateStmt = db.prepare('UPDATE users SET credits = ? WHERE id = ?');
+    updateStmt.run(newBalance, decoded.userId);
+
+    return res.json({
+      success: true,
+      addedCredits: credits,
+      newBalance: newBalance,
+      amountPaid: credits / 2  // ₹1 = 2 credits
+    });
+  } catch (error) {
+    console.error('Error recharging credits:', error.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
 });
