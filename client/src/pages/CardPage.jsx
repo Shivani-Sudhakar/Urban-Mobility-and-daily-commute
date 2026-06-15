@@ -6,7 +6,7 @@ import TripMap from '../components/card/TripMap';
 import TripReceipt from '../components/card/TripReceipt';
 import { calculateCredits } from '../utils/credits';
 import { getCurrentPosition, haversineDistanceKm, reverseGeocode } from '../utils/location';
-import { deductCredits, getBalance, getUserId } from '../utils/storage';
+import { deductCredits, getBalance, getUserId, loadUserData, saveUserData } from '../utils/storage';
 
 const API_BASE = 'http://127.0.0.1:5000/api';
 
@@ -150,7 +150,7 @@ export default function CardPage({ user, userCredits }) {
       if (data.success) {
         // Update local storage to sync with server
         setBalance(data.remainingBalance);
-        localStorage.setItem('userCredits', Number(data.remainingBalance).toFixed(2));
+        saveUserData('credits', Number(data.remainingBalance).toFixed(2));
         
         // Save to travelHistory
         const now = new Date();
@@ -163,9 +163,9 @@ export default function CardPage({ user, userCredits }) {
           time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
           mode: transportMode
         };
-        const history = JSON.parse(localStorage.getItem('travelHistory') || '[]');
+        const history = loadUserData('travelHistory', []);
         history.push(tripEntry);
-        localStorage.setItem('travelHistory', JSON.stringify(history));
+        saveUserData('travelHistory', history);
 
         window.dispatchEvent(new Event('updateCreditsDisplay'));
         window.dispatchEvent(new Event('updateTravelHistory'));

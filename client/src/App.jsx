@@ -7,6 +7,7 @@ import CardPage from './pages/CardPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
+import { onUserLogin, saveUserData, loadUserData } from './utils/storage';
 
 const API_BASE = 'http://127.0.0.1:5000/api';
 
@@ -18,10 +19,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [activeTab, setActiveTab] = useState('home');
-  // Use userCredits from localStorage or state
   const [userCredits, setUserCredits] = useState(() => {
-    const saved = localStorage.getItem('userCredits');
-    return saved !== null ? parseFloat(saved) : null;
+    return loadUserData('credits', null);
   });
 
   // Input states
@@ -77,9 +76,11 @@ export default function App() {
       .then(data => {
         setUser(data);
         setToken(savedToken);
-        setUserCredits(data.credits);
-        // Sync server credits with localStorage
-        localStorage.setItem('userCredits', String(data.credits));
+        localStorage.setItem('userSession', JSON.stringify({ email: data.email }));
+        onUserLogin(data.email);
+        const credits = loadUserData('credits', data.credits);
+        setUserCredits(credits);
+        saveUserData('credits', credits);
         setScreen('app');
       })
       .catch(() => {
@@ -222,9 +223,11 @@ export default function App() {
         });
         const meData = await meRes.json();
         setUser(meData);
-        setUserCredits(meData.credits);
-        // Sync server credits with localStorage
-        localStorage.setItem('userCredits', String(meData.credits));
+        localStorage.setItem('userSession', JSON.stringify({ email: meData.email }));
+        onUserLogin(meData.email);
+        const credits = loadUserData('credits', meData.credits);
+        setUserCredits(credits);
+        saveUserData('credits', credits);
         setScreen('app');
         setActiveTab('home');
       } else {
@@ -369,9 +372,11 @@ export default function App() {
         });
         const meData = await meRes.json();
         setUser(meData);
-        setUserCredits(meData.credits);
-        // Sync server credits with localStorage
-        localStorage.setItem('userCredits', String(meData.credits));
+        localStorage.setItem('userSession', JSON.stringify({ email: meData.email }));
+        onUserLogin(meData.email);
+        const credits = loadUserData('credits', meData.credits);
+        setUserCredits(credits);
+        saveUserData('credits', credits);
         setScreen('app');
         setActiveTab('home');
       } else {
@@ -400,6 +405,7 @@ export default function App() {
   // Logout function
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userSession');
     setUser(null);
     setToken(null);
     setName('');
@@ -407,12 +413,13 @@ export default function App() {
     setPassword('');
     setNewPassword('');
     setConfirmPassword('');
+    setUserCredits(null);
     setScreen('welcome');
   };
 
   // Global function to sync credits display
   const updateCreditsDisplay = () => {
-    const saved = localStorage.getItem('userCredits');
+    const saved = loadUserData('credits', null);
     if (saved !== null) {
       setUserCredits(parseFloat(saved));
     }
@@ -433,7 +440,7 @@ export default function App() {
     return (
       <div className="screens-container" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: '64px' }}>
         <div className="screen-wrapper" style={{ display: activeTab === 'home' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
-          <HomePage user={user} userCredits={userCredits} onCreditsUpdate={(val) => { setUserCredits(val); localStorage.setItem('userCredits', String(val)); window.dispatchEvent(new Event('creditsUpdated')); }} />
+          <HomePage user={user} userCredits={userCredits} onCreditsUpdate={(val) => { setUserCredits(val); saveUserData('credits', val); window.dispatchEvent(new Event('updateCreditsDisplay')); }} />
         </div>
         <div className="screen-wrapper" style={{ display: activeTab === 'route' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
           <AIRoutePage />

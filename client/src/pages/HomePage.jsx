@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Wallet, X, Check, Sparkles, AlertTriangle, Bus, TrainFront, Car, Route as RouteIcon } from 'lucide-react';
 import { cleanLocationName } from '../utils/location';
 import VirtualCard from '../components/card/VirtualCard';
-import { getUserId } from '../utils/storage';
+import { getUserId, loadUserData, saveUserData } from '../utils/storage';
 
 const API_BASE = 'http://127.0.0.1:5000/api';
 
@@ -15,14 +15,12 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [travelHistory, setTravelHistory] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('travelHistory') || '[]')
-    } catch { return [] }
+    return loadUserData('travelHistory', []);
   });
 
   const loadHistory = () => {
     try {
-      const stored = JSON.parse(localStorage.getItem('travelHistory') || '[]');
+      const stored = loadUserData('travelHistory', []);
       stored.sort((a, b) => b.id - a.id);
       setTravelHistory(stored);
     } catch {
@@ -103,7 +101,7 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
         await new Promise(resolve => setTimeout(resolve, 1800));
         
         setBalance(data.newBalance);
-        localStorage.setItem('userCredits', String(data.newBalance));
+        saveUserData('credits', data.newBalance);
         window.dispatchEvent(new Event('updateCreditsDisplay'));
         if (onCreditsUpdate) onCreditsUpdate(data.newBalance);
         

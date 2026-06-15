@@ -1,44 +1,74 @@
 import { INITIAL_BALANCE } from './credits';
 
-const BALANCE_KEY = 'userCredits';
-const TRANSACTIONS_KEY = 'nammacard_transactions';
-const USER_ID_KEY = 'nammacard_user_id';
+// --- User Isolation Helpers ---
+
+export function getCurrentUserEmail() {
+  const session = localStorage.getItem('userSession');
+  if (session) {
+    try {
+      return JSON.parse(session).email || 'guest';
+    } catch {
+      return 'guest';
+    }
+  }
+  return 'guest';
+}
+
+export function getUserKey(key) {
+  const email = getCurrentUserEmail();
+  return `${email}_${key}`;
+}
+
+export function saveUserData(key, value) {
+  localStorage.setItem(getUserKey(key), JSON.stringify(value));
+}
+
+export function loadUserData(key, fallback) {
+  try {
+    const val = localStorage.getItem(getUserKey(key));
+    return val ? JSON.parse(val) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export function initNewUser() {
+  const existing = localStorage.getItem(getUserKey('credits'));
+  if (existing === null) {
+    saveUserData('credits', 100.00);
+    saveUserData('travelHistory', []);
+  }
+}
+
+export function onUserLogin(email) {
+  initNewUser();
+  window.dispatchEvent(new Event('updateCreditsDisplay'));
+  window.dispatchEvent(new Event('updateTravelHistory'));
+  window.dispatchEvent(new Event('updateAnalytics'));
+}
+
+// --- Old Helpers (refactored to use new helpers) ---
 
 export function getUserId() {
-  let id = localStorage.getItem(USER_ID_KEY);
-  if (!id) {
-    id = 'USER_001';
-    localStorage.setItem(USER_ID_KEY, id);
-  }
-  return id;
+  return getCurrentUserEmail();
 }
 
 export function getBalance() {
-  const stored = localStorage.getItem(BALANCE_KEY);
-  if (stored === null) {
-    localStorage.setItem(BALANCE_KEY, String(INITIAL_BALANCE));
-    return INITIAL_BALANCE;
-  }
-  return parseFloat(stored);
+  return parseFloat(loadUserData('credits', INITIAL_BALANCE));
 }
 
 export function setBalance(amount) {
-  localStorage.setItem(BALANCE_KEY, String(amount));
+  saveUserData('credits', amount);
 }
 
 export function getTransactions() {
-  try {
-    const raw = localStorage.getItem(TRANSACTIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return loadUserData('transactions', []);
 }
 
 export function saveTransaction(transaction) {
   const list = getTransactions();
   list.unshift(transaction);
-  localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(list));
+  saveUserData('transactions', list);
 }
 
 export function deductCredits(amount, trip) {

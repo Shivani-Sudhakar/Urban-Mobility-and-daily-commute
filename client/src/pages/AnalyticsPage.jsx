@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Route, CreditCard, Clock, Calendar, BarChart3, TrendingUp, Navigation, Maximize2, Minimize2 } from 'lucide-react';
 import { cleanLocationName } from '../utils/location';
+import { loadUserData } from '../utils/storage';
 
 const getDaysArray = (days) => {
   const arr = [];
@@ -21,15 +22,7 @@ export default function AnalyticsPage() {
   const spendCanvasRef = useRef(null);
 
   const loadData = () => {
-    let data = [];
-    try {
-      const stored = localStorage.getItem('travelHistory');
-      if (stored) {
-        data = JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error("Failed to parse travel history", e);
-    }
+    const data = loadUserData('travelHistory', []);
     setHistory(data);
   };
 
