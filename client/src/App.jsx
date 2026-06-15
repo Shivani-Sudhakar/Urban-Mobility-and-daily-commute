@@ -421,10 +421,10 @@ export default function App() {
   // Add event listener to sync across possible separate components or local storage changes
   useEffect(() => {
     window.addEventListener('storage', updateCreditsDisplay);
-    window.addEventListener('creditsUpdated', updateCreditsDisplay);
+    window.addEventListener('updateCreditsDisplay', updateCreditsDisplay);
     return () => {
       window.removeEventListener('storage', updateCreditsDisplay);
-      window.removeEventListener('creditsUpdated', updateCreditsDisplay);
+      window.removeEventListener('updateCreditsDisplay', updateCreditsDisplay);
     };
   }, []);
 

@@ -15,9 +15,18 @@ export function haversineDistanceKm(a, b) {
   return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
+export function cleanLocationName(name) {
+  if (!name || name === '—') return 'Unknown Location';
+  // If name contains coordinates like "13.12, 80.10" or "Location 13.12, 80.10"
+  if (/(-?\d+\.\d+),\s*(-?\d+\.\d+)/.test(name)) {
+    return 'Unknown Location';
+  }
+  return name;
+}
+
 export function formatCoords(point) {
   if (!point) return '—';
-  return `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`;
+  return cleanLocationName(point.name);
 }
 
 export async function getCurrentPosition() {
@@ -45,15 +54,21 @@ export async function getCurrentPosition() {
 
 export async function reverseGeocode(lat, lng) {
   try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
+      headers: { 'User-Agent': 'NammaCard/1.0' }
+    });
     const data = await res.json();
-    if (data && data.display_name) {
-      return data.display_name.split(',')[0];
-    }
+    const name = data.address?.suburb 
+      || data.address?.neighbourhood
+      || data.address?.city_district
+      || data.address?.city
+      || data.address?.town
+      || 'Unknown Location';
+    return name;
   } catch (err) {
     console.error(err);
   }
-  return `Location ${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+  return 'Unknown Location';
 }
 
 export { CHENNAI_CENTER };

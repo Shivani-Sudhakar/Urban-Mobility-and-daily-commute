@@ -38,7 +38,7 @@ export default function CardPage({ user, userCredits }) {
 
   // Check low balance on mount and after balance changes
   useEffect(() => {
-    if (balance <= 20) {
+    if (Number(Number(balance).toFixed(2)) <= 20.00) {
       setLowBalanceWarning(true);
     } else {
       setLowBalanceWarning(false);
@@ -67,7 +67,7 @@ export default function CardPage({ user, userCredits }) {
     // Check low balance first
     const currentBalance = getBalance();
     setBalance(currentBalance);
-    if (currentBalance <= 20) {
+    if (Number(Number(currentBalance).toFixed(2)) <= 20.00) {
       setLowBalanceWarning(true);
       setError('Your Namma Card balance is too low. Please recharge to continue.');
       return;
@@ -117,7 +117,7 @@ export default function CardPage({ user, userCredits }) {
     const creditsDeducted = calculateCredits(distanceKm);
 
     // Final balance check before deduction
-    if (balance <= 20) {
+    if (Number(Number(balance).toFixed(2)) <= 20.00) {
       setError('Your Namma Card balance is too low. Please recharge to continue.');
       setShowConfirmSheet(false);
       resetTrip();
@@ -150,15 +150,15 @@ export default function CardPage({ user, userCredits }) {
       if (data.success) {
         // Update local storage to sync with server
         setBalance(data.remainingBalance);
-        localStorage.setItem('userCredits', String(data.remainingBalance));
+        localStorage.setItem('userCredits', Number(data.remainingBalance).toFixed(2));
         
         // Save to travelHistory
         const now = new Date();
         const tripEntry = {
           id: Date.now(),
-          from: source.name || `Location ${source.lat.toFixed(2)}, ${source.lng.toFixed(2)}`,
-          to: destination.name || `Location ${destination.lat.toFixed(2)}, ${destination.lng.toFixed(2)}`,
-          credits: creditsDeducted,
+          from: source.name || 'Unknown Location',
+          to: destination.name || 'Unknown Location',
+          credits: Number(Number(creditsDeducted).toFixed(2)),
           date: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
           time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
           mode: transportMode
@@ -167,7 +167,9 @@ export default function CardPage({ user, userCredits }) {
         history.push(tripEntry);
         localStorage.setItem('travelHistory', JSON.stringify(history));
 
-        window.dispatchEvent(new Event('creditsUpdated'));
+        window.dispatchEvent(new Event('updateCreditsDisplay'));
+        window.dispatchEvent(new Event('updateTravelHistory'));
+        window.dispatchEvent(new Event('updateAnalytics'));
         
         // Also save transaction locally for offline capability
         deductCredits(creditsDeducted, {

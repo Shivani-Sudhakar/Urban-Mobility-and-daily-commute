@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, X, Check, Sparkles, AlertTriangle, Bus, TrainFront, Car, Route as RouteIcon } from 'lucide-react';
+import { cleanLocationName } from '../utils/location';
 import VirtualCard from '../components/card/VirtualCard';
 import { getUserId } from '../utils/storage';
 
@@ -40,8 +41,12 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
     const handleUpdate = () => {
       loadHistory();
     };
-    window.addEventListener('creditsUpdated', handleUpdate);
-    return () => window.removeEventListener('creditsUpdated', handleUpdate);
+    window.addEventListener('updateTravelHistory', handleUpdate);
+    window.addEventListener('updateCreditsDisplay', handleUpdate);
+    return () => {
+      window.removeEventListener('updateTravelHistory', handleUpdate);
+      window.removeEventListener('updateCreditsDisplay', handleUpdate);
+    };
   }, [userCredits]);
 
   const creditsNum = parseFloat(credits) || 0;
@@ -99,7 +104,7 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
         
         setBalance(data.newBalance);
         localStorage.setItem('userCredits', String(data.newBalance));
-        window.dispatchEvent(new Event('creditsUpdated'));
+        window.dispatchEvent(new Event('updateCreditsDisplay'));
         if (onCreditsUpdate) onCreditsUpdate(data.newBalance);
         
         setPaymentStep('success');
@@ -202,7 +207,7 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
         {/* Virtual Card */}
         <VirtualCard userName={userName} balance={balance} userId={userId} />
 
-        {balance <= 20 && !showRecharge && (
+        {Number(Number(balance).toFixed(2)) <= 20.00 && !showRecharge && (
           <div className="card-error" role="alert" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <AlertTriangle size={16} />
             <span>Credits not sufficient. Please Recharge</span>
@@ -345,7 +350,7 @@ export default function HomePage({ user, userCredits, onCreditsUpdate }) {
                       <ModeIcon size={20} />
                     </div>
                     <div className="travel-history-details">
-                      <p className="travel-history-route">{trip.from} → {trip.to}</p>
+                      <p className="travel-history-route">{cleanLocationName(trip.from)} → {cleanLocationName(trip.to)}</p>
                       <p className="travel-history-time">{trip.date} • {trip.time}</p>
                     </div>
                     <div className="travel-history-credits">

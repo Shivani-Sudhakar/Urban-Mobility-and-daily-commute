@@ -10,8 +10,7 @@ export function calculateCredits(distanceKm) {
 }
 
 export function formatCredits(value) {
-  const rounded = Math.round(value * 100) / 100;
-  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+  return Number(value).toFixed(2);
 }
 
 export { INITIAL_BALANCE };
