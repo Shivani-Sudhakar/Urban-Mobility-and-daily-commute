@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowUpDown, Search, MapPin, Flag, Navigation, Activity, CheckCircle, Wallet, AlertTriangle } from 'lucide-react';
 import './AIRoutePage.css';
 import TripMap from '../components/card/TripMap';
-import { getBalance, loadUserData, saveUserData, deductCredits } from '../utils/storage';
+
 
 export default function AIRoutePage() {
   const [view, setView] = useState('planner'); // 'planner' | 'map'
@@ -18,6 +18,10 @@ export default function AIRoutePage() {
   const [isCalculating, setIsCalculating] = useState(false);
   const [routes, setRoutes] = useState([]);
   const [error, setError] = useState('');
+
+  // NOTE: The route “use/confirm” flow was intentionally removed.
+  // This page now only compares routes and shows details.
+
 
   const debounceRef = useRef(null);
 
@@ -247,52 +251,10 @@ export default function AIRoutePage() {
     }
   };
 
-  const handleUseRoute = (route) => {
-    const currentBalance = parseFloat(getBalance());
-    const routeCost = route.credits;
 
-    if (currentBalance < routeCost) {
-      setError('Credits not sufficient. Please Recharge.');
-      return;
-    }
-
-    // Deduct
-    deductCredits(routeCost, {
-      source: fromLocation,
-      destination: toLocation,
-      distanceKm: route.dist,
-      transportMode: route.mode
-    });
-
-    const newBalance = currentBalance - routeCost;
-    saveUserData('credits', newBalance.toFixed(2));
-    
-    // Save Trip History
-    const now = new Date();
-    const tripEntry = {
-      id: Date.now(),
-      from: fromLocation.name.split(',')[0],
-      to: toLocation.name.split(',')[0],
-      credits: Number(routeCost.toFixed(2)),
-      date: now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-      time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      mode: route.mode
-    };
-    
-    const history = loadUserData('travelHistory', []);
-    history.push(tripEntry);
-    saveUserData('travelHistory', history);
-
-    // Global dispatches
-    window.dispatchEvent(new Event('updateCreditsDisplay'));
-    window.dispatchEvent(new Event('updateTravelHistory'));
-    window.dispatchEvent(new Event('updateAnalytics'));
-
-    // Switch to Map View simulating navigation to Map screen
-    setView('map');
-  };
 
   const formatName = (name) => {
+
     if (!name) return '';
     const parts = name.split(',');
     return parts[0] + (parts[1] ? ',' + parts[1] : '');
@@ -419,9 +381,7 @@ export default function AIRoutePage() {
                   </div>
                 </div>
 
-                <button className="route-use-btn" onClick={() => handleUseRoute(r)}>
-                  Use This Route ➔
-                </button>
+
               </div>
             ))}
             

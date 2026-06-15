@@ -242,6 +242,15 @@
   background: #bbf7d0; /* slightly darker green/teal */
 }
 
+/* Since the route confirmation is removed, this element is now informational only */
+.route-use-btn--disabled {
+  cursor: default;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--text-secondary);
+  border: 1.5px dashed rgba(15, 118, 110, 0.25);
+}
+
+
 .route-summary-table {
   width: 100%;
   border-collapse: collapse;

@@ -452,7 +452,7 @@ export default function App() {
           <AnalyticsPage />
         </div>
         <div className="screen-wrapper" style={{ display: activeTab === 'profile' ? 'flex' : 'none', width: '100%', height: '100%', position: 'absolute' }}>
-          <ProfilePage user={user} onLogout={handleLogout} />
+          <ProfilePage user={user} userCredits={userCredits} onLogout={handleLogout} />
         </div>
       </div>
     );
